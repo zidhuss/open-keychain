@@ -219,6 +219,8 @@ public class PgpDecryptVerifyOperation extends BaseOperation<PgpDecryptVerifyInp
         HashSet<Long> skippedDisallowedEncryptionKeys = new HashSet<>();
         KeySecurityProblem encryptionKeySecurityProblem = null;
 
+        byte[] recipientFingerprint;
+
         // convenience method to return with error
         public EncryptStreamResult with(DecryptVerifyResult result) {
             errorResult = result;
@@ -368,7 +370,7 @@ public class PgpDecryptVerifyOperation extends BaseOperation<PgpDecryptVerifyInp
         }
 
         PgpSignatureChecker signatureChecker = new PgpSignatureChecker(
-                mKeyRepository, input.getSenderAddress(), securityProblemBuilder);
+                mKeyRepository, input.getSenderAddress(), esResult.recipientFingerprint, securityProblemBuilder);
         if (signatureChecker.initializeOnePassSignature(dataChunk, log, indent +1)) {
             dataChunk = plainFact.nextObject();
         }
@@ -821,6 +823,7 @@ public class PgpDecryptVerifyOperation extends BaseOperation<PgpDecryptVerifyInp
 
             result.symmetricEncryptionAlgo = encryptedDataAsymmetric.getSymmetricAlgorithm(decryptorFactory);
             result.encryptedData = encryptedDataAsymmetric;
+            result.recipientFingerprint = decryptionKey.getRing().getFingerprint();
 
             Map<ByteBuffer, byte[]> cachedSessionKeys = decryptorFactory.getCachedSessionKeys();
             if (cachedSessionKeys.size() >= 1) {
@@ -899,7 +902,7 @@ public class PgpDecryptVerifyOperation extends BaseOperation<PgpDecryptVerifyInp
 
         DecryptVerifySecurityProblemBuilder securityProblemBuilder = new DecryptVerifySecurityProblemBuilder();
         PgpSignatureChecker signatureChecker = new PgpSignatureChecker(mKeyRepository, input.getSenderAddress(),
-                securityProblemBuilder);
+                null, securityProblemBuilder);
 
         Object o = pgpFact.nextObject();
         if (!signatureChecker.initializeSignature(o, log, indent+1)) {
@@ -957,7 +960,7 @@ public class PgpDecryptVerifyOperation extends BaseOperation<PgpDecryptVerifyInp
 
         DecryptVerifySecurityProblemBuilder securityProblemBuilder = new DecryptVerifySecurityProblemBuilder();
         PgpSignatureChecker signatureChecker = new PgpSignatureChecker(mKeyRepository, input.getSenderAddress(),
-                securityProblemBuilder);
+                null, securityProblemBuilder);
 
         if ( ! signatureChecker.initializeSignature(o, log, indent+1)) {
             log.add(LogType.MSG_DC_ERROR_INVALID_DATA, 0);

@@ -19,7 +19,9 @@ package org.sufficientlysecure.keychain.pgp;
 
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 
 import org.openintents.openpgp.OpenPgpSignatureResult;
 import org.openintents.openpgp.OpenPgpSignatureResult.SenderStatusResult;
@@ -54,8 +56,12 @@ public class OpenPgpSignatureResultBuilder {
     private boolean mIsKeyRevoked = false;
     private boolean mIsKeyExpired = false;
     private boolean mInsecure = false;
+    private boolean mIsIntendedRecipient = false;
     private String mSenderAddress;
     private Date mSignatureTimestamp;
+
+    private byte[] actualRecipientFingerprint;
+    private List<byte[]> intendedRecipients;
 
     public OpenPgpSignatureResultBuilder(KeyRepository keyRepository) {
         this.mKeyRepository = keyRepository;
@@ -139,6 +145,27 @@ public class OpenPgpSignatureResultBuilder {
         // either master key is expired/revoked or this specific subkey is expired/revoked
         setKeyExpired(signingRing.isExpired() || signingKey.isExpired());
         setKeyRevoked(signingRing.isRevoked() || signingKey.isRevoked());
+
+        mIsIntendedRecipient = checkIntendedRecipient();
+    }
+
+    private boolean checkIntendedRecipient() {
+        boolean noIntendedRecipients = (intendedRecipients == null);
+        if (noIntendedRecipients) {
+            return true;
+        }
+
+        if (actualRecipientFingerprint == null) {
+            return false;
+        }
+
+        for (byte[] intendedRecipient : intendedRecipients) {
+            if (Arrays.equals(actualRecipientFingerprint, intendedRecipient)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private SenderStatusResult processSenderStatusResult(
@@ -183,7 +210,10 @@ public class OpenPgpSignatureResultBuilder {
         }
 
         int signatureStatus;
-        if (mIsKeyRevoked) {
+        if (!mIsIntendedRecipient) {
+            Timber.d("RESULT_INVALID_NOT_INTENDED_RECIPIENT");
+            signatureStatus = OpenPgpSignatureResult.RESULT_INVALID_NOT_INTENDED_RECIPIENT;
+        } else if (mIsKeyRevoked) {
             Timber.d("RESULT_INVALID_KEY_REVOKED");
             signatureStatus = OpenPgpSignatureResult.RESULT_INVALID_KEY_REVOKED;
         } else if (mIsKeyExpired) {
@@ -208,4 +238,11 @@ public class OpenPgpSignatureResultBuilder {
         mSenderAddress = senderAddress;
     }
 
+    public void setActualRecipientFingerprint(byte[] actualRecipientFingerprint) {
+        this.actualRecipientFingerprint = actualRecipientFingerprint;
+    }
+
+    public void setIntendedRecipients(List<byte[]> intendedRecipients) {
+        this.intendedRecipients = intendedRecipients;
+    }
 }

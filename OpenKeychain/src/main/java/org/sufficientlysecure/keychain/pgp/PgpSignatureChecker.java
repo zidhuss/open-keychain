@@ -62,11 +62,12 @@ class PgpSignatureChecker {
     private KeyRepository mKeyRepository;
 
     PgpSignatureChecker(KeyRepository keyRepository, String senderAddress,
-            DecryptVerifySecurityProblemBuilder securityProblemBuilder) {
+            byte[] actualRecipientFingerprint, DecryptVerifySecurityProblemBuilder securityProblemBuilder) {
         mKeyRepository = keyRepository;
 
         signatureResultBuilder = new OpenPgpSignatureResultBuilder(keyRepository);
         signatureResultBuilder.setSenderAddress(senderAddress);
+        signatureResultBuilder.setActualRecipientFingerprint(actualRecipientFingerprint);
 
         this.securityProblemBuilder = securityProblemBuilder;
     }
@@ -91,6 +92,8 @@ class PgpSignatureChecker {
             signature.init(contentVerifierBuilderProvider, signingKey.getPublicKey());
             checkKeySecurity(log, indent);
 
+            signatureResultBuilder.setIntendedRecipients(
+                    signature.getHashedSubPackets().getIntendedRecipientFingerprints());
 
         } else if (!sigList.isEmpty()) {
 
@@ -126,6 +129,9 @@ class PgpSignatureChecker {
             onePassSignature.init(contentVerifierBuilderProvider, signingKey.getPublicKey());
 
             checkKeySecurity(log, indent);
+
+            signatureResultBuilder.setIntendedRecipients(
+                    signature.getHashedSubPackets().getIntendedRecipientFingerprints());
 
         } else if (!sigList.isEmpty()) {
 
